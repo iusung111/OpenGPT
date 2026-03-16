@@ -4,9 +4,10 @@ Minimal target repository for testing the web ChatGPT + GitHub MCP + GitHub Acti
 
 ## Included
 
-- `.github/workflows/agent-run.yml`
-- `.github/workflows/pr-validate.yml`
-- `scripts/agent_run.py`
+- `.github/workflows/agent-run.yml`: entry workflow for MCP-triggered agent runs
+- `.github/workflows/pr-validate.yml`: PV
+ validation workflow for changes opened through pull requests
+- `scripts/agent_run.py`: helper script used by the agent run workflow
 
 ## Purpose
 
