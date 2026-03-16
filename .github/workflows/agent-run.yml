@@ -40,6 +40,11 @@ on:
         required: true
         default: false
         type: boolean
+      runner_label:
+        description: "GitHub-hosted runner label such as ubuntu-latest or windows-latest"
+        required: true
+        default: "ubuntu-latest"
+        type: string
       dry_run:
         description: "Skip push and PR creation"
         required: true
@@ -52,7 +57,10 @@ permissions:
 
 jobs:
   run-agent-task:
-    runs-on: ubuntu-latest
+    runs-on: ${{ inputs.runner_label }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -64,6 +72,15 @@ jobs:
         run: |
           echo "branch_name=agent/${{ inputs.job_id }}-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
 
+      - name: Detect Python command
+        id: python
+        run: |
+          if command -v python3 >/dev/null 2>&1; then
+            echo "cmd=python3" >> "$GITHUB_OUTPUT"
+          else
+            echo "cmd=python" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Create branch
         run: |
           git checkout -b "${{ steps.vars.outputs.branch_name }}"
@@ -71,7 +88,7 @@ jobs:
       - name: Prepare input payload
         run: |
           mkdir -p .agent-input .agent-output
-          python3 - <<'PY'
+          "${{ steps.python.outputs.cmd }}" - <<'PY'
           import base64
           from pathlib import Path
           raw = """${{ inputs.instructions_b64 }}"""
@@ -83,7 +100,7 @@ jobs:
 
       - name: Execute structured agent payload
         run: |
-          python3 scripts/agent_run.py
+          "${{ steps.python.outputs.cmd }}" scripts/agent_run.py
 
       - name: Detect changes
         id: diff
@@ -121,7 +138,7 @@ jobs:
       - name: Write workflow manifest
         if: always()
         run: |
-          python3 - <<'PY'
+          "${{ steps.python.outputs.cmd }}" - <<'PY'
           import json
           from pathlib import Path
 
@@ -136,12 +153,24 @@ jobs:
               "target_paths": "${{ inputs.target_paths }}",
               "work_branch": "${{ steps.vars.outputs.branch_name }}",
               "auto_improve": "${{ inputs.auto_improve }}".lower() == "true",
+              "runner_label": "${{ inputs.runner_label }}",
               "dry_run": "${{ inputs.dry_run }}".lower() == "true",
               "changed": "${{ steps.diff.outputs.changed }}".lower() == "true",
               "run_id": "${{ github.run_id }}"
           })
           manifest_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
           PY
+
+      - name: Upload build artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-run-build-output
+          if-no-files-found: ignore
+          path: |
+            dist
+            build
+            *.spec
 
       - name: Upload manifest artifact
         if: always()

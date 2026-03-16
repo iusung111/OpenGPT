@@ -5,19 +5,78 @@ import subprocess
 from pathlib import Path
 
 
-ALLOWED_COMMANDS = {
+CORE_COMMANDS = {
+    "pwd",
+    "echo",
+    "env",
+    "printenv",
+    "ls",
+    "cat",
+    "sed",
+    "grep",
+    "find",
+    "head",
+    "tail",
+    "wc",
+    "cp",
+    "mv",
+    "mkdir",
+    "rm",
+    "touch",
+}
+
+PYTHON_COMMANDS = {
     "python",
     "python3",
+    "pip",
+    "pip3",
     "pytest",
     "ruff",
+    "pyinstaller",
+    "nuitka",
+    "uv",
+    "uvx",
+}
+
+NODE_COMMANDS = {
+    "node",
     "npm",
     "pnpm",
     "yarn",
+    "npx",
+}
+
+NATIVE_BUILD_COMMANDS = {
     "go",
     "cargo",
-    "pwd",
-    "echo",
+    "rustc",
+    "cmake",
+    "cpack",
+    "make",
 }
+
+VCS_COMMANDS = {
+    "git",
+    "gh",
+}
+
+WINDOWS_COMMANDS = {
+    "pwsh",
+    "powershell",
+}
+
+ALLOWED_COMMANDS = (
+    CORE_COMMANDS
+    | PYTHON_COMMANDS
+    | NODE_COMMANDS
+    | NATIVE_BUILD_COMMANDS
+    | VCS_COMMANDS
+    | WINDOWS_COMMANDS
+)
+
+
+def is_command_allowed(command: list[str]) -> bool:
+    return bool(command) and command[0] in ALLOWED_COMMANDS
 
 
 def ensure_safe_path(path: str) -> None:
@@ -31,7 +90,7 @@ def run_commands(commands: list[list[str]]) -> list[dict]:
     for command in commands:
         if not command:
             continue
-        if command[0] not in ALLOWED_COMMANDS:
+        if not is_command_allowed(command):
             raise ValueError(f"command not allowlisted: {command[0]}")
         completed = subprocess.run(command, capture_output=True, text=True, check=False)
         results.append(
