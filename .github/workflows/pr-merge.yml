@@ -1,0 +1,50 @@
+name: pr-merge
+
+on:
+  workflow_dispatch:
+    inputs:
+      pull_number:
+        description: "Pull request number to merge"
+        required: true
+        type: string
+      merge_method:
+        description: "merge | squash | rebase"
+        required: true
+        default: "merge"
+        type: string
+      delete_branch:
+        description: "Delete head branch after merge"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  merge-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Merge pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          case "${{ inputs.merge_method }}" in
+            merge|squash|rebase) ;;
+            *)
+              echo "Invalid merge_method: ${{ inputs.merge_method }}" >&2
+              exit 1
+              ;;
+          esac
+
+          DELETE_FLAG=""
+          if [ "${{ inputs.delete_branch }}" = "true" ]; then
+            DELETE_FLAG=
+              "--delete-branch"
+          fi
+
+          gh pr merge "${{ inputs.pull_number }}" \
+            --repo "${{ github.repository }}" \
+            --${{ inputs.merge_method }} \
+            ${DELETE_FLAG}
