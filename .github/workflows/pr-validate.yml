@@ -1,0 +1,32 @@
+name: pr-validate
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Basic repository check
+        run: |
+          echo "repository validation"
+          git status --short
+          find . -maxdepth 3 -type f | sort
+
+      - name: Upload validation context
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-validate-context
+          path: |
+            README.md
+            .github/workflows
+            scripts

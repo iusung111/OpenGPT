@@ -1,0 +1,151 @@
+name: agent-run
+
+on:
+  workflow_dispatch:
+    inputs:
+      job_id:
+        description: "Queue job id"
+        required: true
+        type: string
+      operation_type:
+        description: "write_files | append_files | run_commands | mixed"
+        required: true
+        type: string
+      base_branch:
+        description: "Base branch"
+        required: true
+        default: "main"
+        type: string
+      target_paths:
+        description: "Comma-separated paths"
+        required: false
+        default: ""
+        type: string
+      instructions_b64:
+        description: "Base64 encoded structured operation instructions"
+        required: true
+        type: string
+      pr_title:
+        description: "PR title"
+        required: false
+        default: ""
+        type: string
+      pr_body:
+        description: "PR body"
+        required: false
+        default: ""
+        type: string
+      auto_improve:
+        description: "Enable queue-based auto improvement cycle"
+        required: true
+        default: false
+        type: boolean
+      dry_run:
+        description: "Skip push and PR creation"
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  run-agent-task:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base_branch }}
+
+      - name: Set branch name
+        id: vars
+        run: |
+          echo "branch_name=agent/${{ inputs.job_id }}-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Create branch
+        run: |
+          git checkout -b "${{ steps.vars.outputs.branch_name }}"
+
+      - name: Prepare input payload
+        run: |
+          mkdir -p .agent-input .agent-output
+          python3 - <<'PY'
+          import base64
+          from pathlib import Path
+          raw = """${{ inputs.instructions_b64 }}"""
+          Path(".agent-input/instructions.json").write_text(
+              base64.b64decode(raw).decode("utf-8"),
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Execute structured agent payload
+        run: |
+          python3 scripts/agent_run.py
+
+      - name: Detect changes
+        id: diff
+        run: |
+          if git status --short | grep .; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit changes
+        if: steps.diff.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "agent-run: ${{ inputs.operation_type }} (${{ inputs.job_id }})"
+
+      - name: Push branch
+        if: steps.diff.outputs.changed == 'true' && inputs.dry_run == false
+        run: |
+          git push --set-upstream origin "${{ steps.vars.outputs.branch_name }}"
+
+      - name: Create pull request
+        if: steps.diff.outputs.changed == 'true' && inputs.dry_run == false && inputs.pr_title != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr create \
+            --title "${{ inputs.pr_title }}" \
+            --body "${{ inputs.pr_body }}" \
+            --base "${{ inputs.base_branch }}" \
+            --head "${{ steps.vars.outputs.branch_name }}"
+
+      - name: Write workflow manifest
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest_path = Path(".agent-output/manifest.json")
+          payload = {}
+          if manifest_path.exists():
+              payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+          payload.update({
+              "job_id": "${{ inputs.job_id }}",
+              "operation_type": "${{ inputs.operation_type }}",
+              "base_branch": "${{ inputs.base_branch }}",
+              "target_paths": "${{ inputs.target_paths }}",
+              "work_branch": "${{ steps.vars.outputs.branch_name }}",
+              "auto_improve": "${{ inputs.auto_improve }}".lower() == "true",
+              "dry_run": "${{ inputs.dry_run }}".lower() == "true",
+              "changed": "${{ steps.diff.outputs.changed }}".lower() == "true",
+              "run_id": "${{ github.run_id }}"
+          })
+          manifest_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+          PY
+
+      - name: Upload manifest artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-run-manifest
+          path: .agent-output
