@@ -44,8 +44,25 @@ This keeps feature work isolated from the MCP self-improvement loop while preser
 - native build workflows: `go`, `cargo`, `rustc`, `cmake`, `cpack`, `make`
 - GitHub and VCS helpers: `git`, `gh`
 - Windows runner helpers: `pwsh`, `powershell`
+- PR merge through structured payload: `pull_request_merge`
 
 The workflow also accepts a `runner_label` input so the same structured payload can be validated on `ubuntu-latest` or `windows-latest`.
+
+## Example: Structured PR Merge
+
+Use the existing allowlisted `agent-run.yml` workflow and pass a structured `pull_request_merge` object instead of adding a separate merge workflow:
+
+```json
+{
+  "pull_request_merge": {
+    "number": 7,
+    "method": "merge",
+    "repository": "iusung111/OpenGPT"
+  }
+}
+```
+
+This keeps PR merge inside the existing allowlisted workflow surface and reduces extra allowlist churn for one-off workflow files.
 
 ## Example: Windows GUI One-File Build
 
