@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import unittest
 
-<<<<<<< agent/allowlist-improve-20260317
-from scripts.agent_run import build_pull_request_merge_command, ensure_safe_path, is_command_allowed
-=======
 from scripts.agent_run import (
+    build_pull_request_merge_command,
     ensure_project_scaffold,
     ensure_safe_path,
     is_command_allowed,
@@ -13,7 +11,6 @@ from scripts.agent_run import (
     normalize_project_slug,
     validate_command,
 )
->>>>>>> main
 
 
 class AgentRunSafetyTests(unittest.TestCase):
@@ -68,7 +65,6 @@ class AgentRunAllowlistTests(unittest.TestCase):
         self.assertFalse(is_command_allowed(["curl", "-I", "https://example.com"]))
 
 
-<<<<<<< agent/allowlist-improve-20260317
 class AgentRunStructuredOperationTests(unittest.TestCase):
     def test_builds_pull_request_merge_command(self) -> None:
         self.assertEqual(
@@ -100,8 +96,9 @@ class AgentRunStructuredOperationTests(unittest.TestCase):
 
     def test_rejects_unsafe_repository(self) -> None:
         with self.assertRaisesRegex(ValueError, "unsafe repository"):
-            build_pull_request_merge_command({"number": 7, "repository": "iusung111/OpenGPT bad"})
-=======
+            build_pull_request_merge_command({"number": 7, "repository": "iusung111/OpenGPT  bad"})
+
+
 class AgentRunProtectedBranchTests(unittest.TestCase):
     def test_detects_direct_push_to_main(self) -> None:
         self.assertTrue(is_protected_branch_command(["git", "push", "origin", "main"]))
@@ -123,7 +120,6 @@ class AgentRunProtectedBranchTests(unittest.TestCase):
     def test_blocks_validation_for_protected_branch_mutation(self) -> None:
         with self.assertRaisesRegex(ValueError, "protected branch mutation"):
             validate_command(["git", "push", "origin", "main"])
->>>>>>> main
 
 
 if __name__ == "__main__":
