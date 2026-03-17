@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from pathlib import Path
 
@@ -66,6 +67,7 @@ WINDOWS_COMMANDS = {
 }
 
 PROTECTED_BRANCHES = {"main", "master"}
+PROJECT_SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 ALLOWED_COMMANDS = (
     CORE_COMMANDS
@@ -85,6 +87,72 @@ def ensure_safe_path(path: str) -> None:
     path_obj = Path(path)
     if path_obj.is_absolute() or ".." in path_obj.parts:
         raise ValueError(f"unsafe path: {path}")
+
+
+def normalize_project_slug(project_slug: str | None) -> str | None:
+    if project_slug is None:
+        return None
+    slug = project_slug.strip()
+    if not slug:
+        return None
+    if not PROJECT_SLUG_PATTERN.fullmatch(slug):
+        raise ValueError(f"invalid project_slug: {project_slug}")
+    return slug
+
+
+def project_doc_path(project_slug: str) -> Path:
+    return Path("docs/projects") / f"{project_slug}.md"
+
+
+def project_root_path(project_slug: str) -> Path:
+    return Path("projects") / project_slug
+
+
+def ensure_project_scaffold(
+    *,
+    project_slug: str | None,
+    request_kind: str,
+    create_project_scaffold: bool,
+    manifest: dict,
+) -> None:
+    if request_kind != "feature_delivery":
+        return
+    if project_slug is None:
+        raise ValueError("project_slug is required when request_kind=feature_delivery")
+    manifest["notes"].append(f"feature delivery project slug: {project_slug}")
+    if not create_project_scaffold:
+        return
+
+    doc_path = project_doc_path(project_slug)
+    ensure_safe_path(str(doc_path))
+    doc_path.parent.mkdir(parents=True, exist_ok=True)
+    if not doc_path.exists():
+        doc_path.write_text(
+            "\n".join(
+                [
+                    f"# Project: {project_slug}",
+                    "",
+                    - Request kind: feature_delivery",
+                    "- Status: scaffolded",
+                    "- Notes: created automatically by agent_run.py",
+                    "",
+                    "## Scope",
+                    "",
+                    "Fill in the chat-requested implementation scope here.",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        manifest["writes"].append(str(doc_path))
+
+    root_path = project_root_path(project_slug)
+    ensure_safe_path(str(root_path))
+    root_path.mkdir(parents=True, exist_ok=True)
+    keep_path = root_path / ".gitkeep"
+    if not keep_path.exists():
+        keep_path.write_text("", encoding="utf-8")
+        manifest["writes"].append(str(keep_path))
 
 
 def _extract_git_push_targets(command: list[str]) -> list[str]:
@@ -157,13 +225,28 @@ def main() -> int:
     instructions = json.loads(Path(".agent-input/instructions.json").read_text(encoding="utf-8"))
     Path(".agent-output").mkdir(parents=True, exist_ok=True)
 
+    request_kind = instructions.get("request_kind", "self_improvement")
+    project_slug = normalize_project_slug(instructions.get("project_slug"))
+    create_project_scaffold = bool(instructions.get("create_project_scaffold", False))
+
     manifest = {
         "job_id": instructions.get("job_id"),
         "auto_improve": instructions.get("auto_improve", False),
+        "request_kind": request_kind,
+        "project_slug": project_slug,
+        "project_doc": str(project_doc_path(project_slug)) if project_slug else None,
+        "project_root": str(project_root_path(project_slug)) if project_slug else None,
         "writes": [],
         "command_results": [],
         "notes": [],
     }
+
+    ensure_project_scaffold(
+        project_slug=project_slug,
+        request_kind=request_kind,
+        create_project_scaffold=create_project_scaffold,
+        manifest=manifest,
+    )
 
     for item in instructions.get("write_files", []):
         path = item["path"]

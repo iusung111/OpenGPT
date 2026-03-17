@@ -3,9 +3,11 @@ from __future__ import annotations
 import unittest
 
 from scripts.agent_run import (
+    ensure_project_scaffold,
     ensure_safe_path,
     is_command_allowed,
     is_protected_branch_command,
+    normalize_project_slug,
     validate_command,
 )
 
@@ -21,6 +23,25 @@ class AgentRunSafetyTests(unittest.TestCase):
 
     def test_allows_repo_relative_path(self) -> None:
         ensure_safe_path("dist/app.exe")
+
+
+class AgentRunProjectMetadataTests(unittest.TestCase):
+    def test_normalizes_valid_project_slug(self) -> None:
+        self.assertEqual(normalize_project_slug("chat-ui"), "chat-ui")
+
+    def test_rejects_invalid_project_slug(self) -> None:
+        with self.assertRaisesRegex(ValueError, "invalid project_slug"):
+            normalize_project_slug("Chat UI")
+
+    def test_feature_delivery_requires_project_slug(self) -> None:
+        manifest = {"writes": [], "notes": []}
+        with self.assertRaisesRegex(ValueError, "project_slug is required"):
+            ensure_project_scaffold(
+                project_slug=None,
+                request_kind="feature_delivery",
+                create_project_scaffold=False,
+                manifest=manifest,
+            )
 
 
 class AgentRunAllowlistTests(unittest.TestCase):
