@@ -68,12 +68,15 @@ WINDOWS_COMMANDS = {
 
 PROTECTED_BRANCHES = {"main", "master"}
 PROJECT_SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+<<<<<<< agent/allowlist-improve-20260317
 REPOSITORY_SLUG_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 MERGE_METHOD_FLAGS = {
     "merge": "--merge",
     "squash": "--squash",
     "rebase": "--rebase",
 }
+=======
+>>>>>>> main
 
 ALLOWED_COMMANDS = (
     CORE_COMMANDS
@@ -106,6 +109,7 @@ def normalize_project_slug(project_slug: str | None) -> str | None:
     return slug
 
 
+<<<<<<< agent/allowlist-improve-20260317
 def ensure_safe_repository(repository: str) -> None:
     if not REPOSITORY_SLUG_PATTERN.fullmatch(repository):
         raise ValueError(f"unsafe repository: {repository}")
@@ -124,6 +128,8 @@ def normalize_pull_request_number(value: int | str) -> str:
     return str(number)
 
 
+=======
+>>>>>>> main
 def project_doc_path(project_slug: str) -> Path:
     return Path("docs/projects") / f"{project_slug}.md"
 
@@ -156,7 +162,11 @@ def ensure_project_scaffold(
                 [
                     f"# Project: {project_slug}",
                     "",
+<<<<<<< agent/allowlist-improve-20260317
                     "- Request kind: feature_delivery",
+=======
+                    - Request kind: feature_delivery",
+>>>>>>> main
                     "- Status: scaffolded",
                     "- Notes: created automatically by agent_run.py",
                     "",
@@ -225,6 +235,7 @@ def validate_command(command: list[str]) -> None:
         raise ValueError("direct protected branch mutation is not allowed; use PR merge flow")
 
 
+<<<<<<< agent/allowlist-improve-20260317
 def build_pull_request_merge_command(pull_request_merge: dict) -> list[str]:
     if "number" not in pull_request_merge:
         raise ValueError("pull request merge requires a number")
@@ -252,6 +263,8 @@ def build_pull_request_merge_command(pull_request_merge: dict) -> list[str]:
     return command
 
 
+=======
+>>>>>>> main
 def run_commands(commands: list[list[str]]) -> list[dict]:
     results: list[dict] = []
     for command in commands:

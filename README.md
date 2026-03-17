@@ -19,10 +19,24 @@ This repository is intentionally small. It exists to validate:
 - later PR-based validation
 - broader structured command execution for repo inspection, development, and build validation
 - Windows GUI / single-file executable verification through `runner_label=windows-latest`
+- future chat-requested feature delivery with per-project tracking under `docs/projects/` and `projects/`
+
+## Chat-Requested Feature Delivery Flow
+
+When the MCP workflow matures past self-improvement, chat-requested implementation work should use the structured project metadata below:
+
+- `request_kind=feature_delivery` for user-requested implementation work
+- `project_slug=<short-kebab-name>` to create a stable project identity
+- `create_project_scaffold=true` to create:
+  - `docs/projects/<project_slug>.md`
+  - `projects/<project_slug>/.gitkeep`
+- non-dry-run execution so the workflow creates an `agent/<job_id>-<project_slug>-<run_id>` branch and opens a PR
+
+This keeps feature work isolated from the MCP self-improvement loop while preserving a project note and a dedicated folder for deliverables.
 
 ## Structured Agent Payload Notes
 
-`scripts/agent_run.py` now accepts a broader set of development and build commands so web GPT flows can handle:
+`scripts/agent_run.py` now accepts a broader set of development and build commands so web GPT  flows can handle:
 
 - repo inspection: `ls`, `cat`, `sed`, `grep`, `find`
 - Python workflows: `python`, `python3`, `pip`, `pip3`, `pytest`, `ruff`, `pyinstaller`, `uv`

@@ -40,6 +40,21 @@ on:
         required: true
         default: false
         type: boolean
+      request_kind:
+        description: "self_improvement | feature_delivery"
+        required: true
+        default: "self_improvement"
+        type: string
+      project_slug:
+        description: "Short kebab-case project slug for chat-requested implementation work"
+        required: false
+        default: ""
+        type: string
+      create_project_scaffold:
+        description: "Create docs/projects/<slug>.md and projects/<slug>/ scaffold"
+        required: true
+        default: false
+        type: boolean
       runner_label:
         description: "GitHub-hosted runner label such as ubuntu-latest or windows-latest"
         required: true
@@ -75,11 +90,17 @@ jobs:
       - name: Set branch name
         id: vars
         run: |
+          slug="${{ inputs.project_slug }}"
+          slug_suffix=""
+          if [ -n "$slug" ]; then
+            slug_suffix="-$slug"
+          fi
+
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             echo "branch_name=${{ inputs.base_branch }}" >> "$GITHUB_OUTPUT"
             echo "should_create_branch=false" >> "$GITHUB_OUTPUT"
           else
-            echo "branch_name=agent/${{ inputs.job_id }}-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+            echo "branch_name=agent/${{ inputs.job_id }}${slug_suffix}-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
             echo "should_create_branch=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -102,10 +123,16 @@ jobs:
           mkdir -p .agent-input .agent-output
           "${{ steps.python.outputs.cmd }}" - <<'PY'
           import base64
+          import json
           from pathlib import Path
+
           raw = """${{ inputs.instructions_b64 }}"""
+          payload = json.loads(base64.b64decode(raw).decode("utf-8"))
+          payload.setdefault("request_kind", "${{ inputs.request_kind }}")
+          payload.setdefault("project_slug", "${{ inputs.project_slug }}")
+          payload.setdefault("create_project_scaffold", "${{ inputs.create_project_scaffold }}".lower() == "true")
           Path(".agent-input/instructions.json").write_text(
-              base64.b64decode(raw).decode("utf-8"),
+              json.dumps(payload, indent=2),
               encoding="utf-8",
           )
           PY
@@ -165,14 +192,16 @@ jobs:
               "target_paths": "${{ inputs.target_paths }}",
               "work_branch": "${{ steps.vars.outputs.branch_name }}",
               "auto_improve": "${{ inputs.auto_improve }}".lower() == "true",
+              "request_kind": "${{ inputs.request_kind }}",
+              "project_slug": "${{ inputs.project_slug }}",
+              "create_project_scaffold": "${{ inputs.create_project_scaffold }}".lower() == "true",
               "runner_label": "${{ inputs.runner_label }}",
               "dry_run": "${{ inputs.dry_run }}".lower() == "true",
               "changed": "${{ steps.diff.outputs.changed }}".lower() == "true",
               "run_id": "${{ github.run_id }}"
           })
           manifest_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
-          PY
-
+          PY\
       - name: Upload build artifacts
         if: always() && hashFiles('dist/**', 'build/**', '*.spec') != ''
         uses: actions/upload-artifact@v4
