@@ -66,6 +66,15 @@ WINDOWS_COMMANDS = {
     "powershell",
 }
 
+PROTECTED_BRANCHES = {"main", "master"}
+PROJECT_SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+REPOSITORY_SLUG_PATTERN = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+MERGE_METHOD_FLAGS = {
+    "merge": "--merge",
+    "squash": "--squash",
+    "rebase": "--rebase",
+}
+
 ALLOWED_COMMANDS = (
     CORE_COMMANDS
     | PYTHON_COMMANDS
@@ -74,13 +83,6 @@ ALLOWED_COMMANDS = (
     | VCS_COMMANDS
     | WINDOWS_COMMANDS
 )
-
-REPOSITORY_SLEG_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
-MERGE_METHOD_FLAGS = {
-    "merge": "--merge",
-    "squash": "--squash",
-    "rebase": "--rebase",
-}
 
 
 def is_command_allowed(command: list[str]) -> bool:
@@ -93,8 +95,19 @@ def ensure_safe_path(path: str) -> None:
         raise ValueError(f"unsafe path: {path}")
 
 
+def normalize_project_slug(project_slug: str | None) -> str | None:
+    if project_slug is None:
+        return None
+    slug = project_slug.strip()
+    if not slug:
+        return None
+    if not PROJECT_SLUG_PATTERN.fullmatch(slug):
+        raise ValueError(f"invalid project_slug: {project_slug}")
+    return slug
+
+
 def ensure_safe_repository(repository: str) -> None:
-    if not REPOSITORY_SLEG_RE.fullmatch(repository):
+    if not REPOSITORY_SLUG_PATTERN.fullmatch(repository):
         raise ValueError(f"unsafe repository: {repository}")
 
 
@@ -109,6 +122,107 @@ def normalize_pull_request_number(value: int | str) -> str:
     if number <= 0:
         raise ValueError("pull request number must be a positive integer")
     return str(number)
+
+
+def project_doc_path(project_slug: str) -> Path:
+    return Path("docs/projects") / f"{project_slug}.md"
+
+
+def project_root_path(project_slug: str) -> Path:
+    return Path("projects") / project_slug
+
+
+def ensure_project_scaffold(
+    *,
+    project_slug: str | None,
+    request_kind: str,
+    create_project_scaffold: bool,
+    manifest: dict,
+) -> None:
+    if request_kind != "feature_delivery":
+        return
+    if project_slug is None:
+        raise ValueError("project_slug is required when request_kind=feature_delivery")
+    manifest["notes"].append(f"feature delivery project slug: {project_slug}")
+    if not create_project_scaffold:
+        return
+
+    doc_path = project_doc_path(project_slug)
+    ensure_safe_path(str(doc_path))
+    doc_path.parent.mkdir(parents=True, exist_ok=True)
+    if not doc_path.exists():
+        doc_path.write_text(
+            "\n".join(
+                [
+                    f"# Project: {project_slug}",
+                    "",
+                    "- Request kind: feature_delivery",
+                    "- Status: scaffolded",
+                    "- Notes: created automatically by agent_run.py",
+                    "",
+                    "## Scope",
+                    "",
+                    "Fill in the chat-requested implementation scope here.",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        manifest["writes"].append(str(doc_path))
+
+    root_path = project_root_path(project_slug)
+    ensure_safe_path(str(root_path))
+    root_path.mkdir(parents=True, exist_ok=True)
+    keep_path = root_path / ".gitkeep"
+    if not keep_path.exists():
+        keep_path.write_text("", encoding="utf-8")
+        manifest["writes"].append(str(keep_path))
+
+
+def _extract_git_push_targets(command: list[str]) -> list[str]:
+    if len(command) < 4 or command[0] != "git" or command[1] != "push":
+        return []
+    targets: list[str] = []
+    options_with_values = {"--repo", "--receive-pack", "--exec", "--upload-pack"}
+    i = 2
+    while i < len(command):
+        token = command[i]
+        if token == "--":
+            targets.extend(command[i + 1 :])
+            break
+        if token in options_with_values:
+            i += 2
+            continue
+        if token.startswith("-"):
+            i += 1
+            continue
+        targets.extend(command[i + 1 :])
+        break
+    return targets
+
+
+def is_protected_branch_command(command: list[str]) -> bool:
+    if not command:
+        return False
+    if command[0] == "git":
+        push_targets = _extract_git_push_targets(command)
+        return any(target in PROTECTED_BRANCHES for target in push_targets)
+    if command[0] == "gh" and len(command) >= 4:
+        if command[1:3] == ["pr", "merge"]:
+            for token in command[3:]:
+                if token in {"--admin", "--delete-branch"}:
+                    continue
+                if token.startswith("-"):
+                    continue
+                return token in PROTECTED_BRANCHES
+    return False
+
+
+def validate_command(command: list[str]) -> None:
+    if not is_command_allowed(command):
+        raise ValueError(f"command not allowlisted: {command[0]}")
+    if is_protected_branch_command(command):
+        raise ValueError("direct protected branch mutation is not allowed; use PR merge flow")
 
 
 def build_pull_request_merge_command(pull_request_merge: dict) -> list[str]:
@@ -143,8 +257,7 @@ def run_commands(commands: list[list[str]]) -> list[dict]:
     for command in commands:
         if not command:
             continue
-        if not is_command_allowed(command):
-            raise ValueError(f"command not allowlisted: {command[0]}")
+        validate_command(command)
         completed = subprocess.run(command, capture_output=True, text=True, check=False)
         results.append(
             {
@@ -163,14 +276,29 @@ def main() -> int:
     instructions = json.loads(Path(".agent-input/instructions.json").read_text(encoding="utf-8"))
     Path(".agent-output").mkdir(parents=True, exist_ok=True)
 
+    request_kind = instructions.get("request_kind", "self_improvement")
+    project_slug = normalize_project_slug(instructions.get("project_slug"))
+    create_project_scaffold = bool(instructions.get("create_project_scaffold", False))
+
     manifest = {
         "job_id": instructions.get("job_id"),
         "auto_improve": instructions.get("auto_improve", False),
+        "request_kind": request_kind,
+        "project_slug": project_slug,
+        "project_doc": str(project_doc_path(project_slug)) if project_slug else None,
+        "project_root": str(project_root_path(project_slug)) if project_slug else None,
         "writes": [],
         "command_results": [],
         "structured_operations": [],
         "notes": [],
     }
+
+    ensure_project_scaffold(
+        project_slug=project_slug,
+        request_kind=request_kind,
+        create_project_scaffold=create_project_scaffold,
+        manifest=manifest,
+    )
 
     for item in instructions.get("write_files", []):
         path = item["path"]
