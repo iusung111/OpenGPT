@@ -65,6 +65,8 @@ WINDOWS_COMMANDS = {
     "powershell",
 }
 
+PROTECTED_BRANCHES = {"main", "master"}
+
 ALLOWED_COMMANDS = (
     CORE_COMMANDS
     | PYTHON_COMMANDS
@@ -85,13 +87,58 @@ def ensure_safe_path(path: str) -> None:
         raise ValueError(f"unsafe path: {path}")
 
 
+def _extract_git_push_targets(command: list[str]) -> list[str]:
+    if len(command) < 4 or command[0] != "git" or command[1] != "push":
+        return []
+    targets: list[str] = []
+    options_with_values = {"--repo", "--receive-pack", "--exec", "--upload-pack"}
+    i = 2
+    while i < len(command):
+        token = command[i]
+        if token == "--":
+            targets.extend(command[i + 1 :])
+            break
+        if token in options_with_values:
+            i += 2
+            continue
+        if token.startswith("-"):
+            i += 1
+            continue
+        targets.extend(command[i + 1 :])
+        break
+    return targets
+
+
+def is_protected_branch_command(command: list[str]) -> bool:
+    if not command:
+        return False
+    if command[0] == "git":
+        push_targets = _extract_git_push_targets(command)
+        return any(target in PROTECTED_BRANCHES for target in push_targets)
+    if command[0] == "gh" and len(command) >= 4:
+        if command[1:3] == ["pr", "merge"]:
+            for token in command[3:]:
+                if token in {"--admin", "--delete-branch"}:
+                    continue
+                if token.startswith("-"):
+                    continue
+                return token in PROTECTED_BRANCHES
+    return False
+
+
+def validate_command(command: list[str]) -> None:
+    if not is_command_allowed(command):
+        raise ValueError(f"command not allowlisted: {command[0]}")
+    if is_protected_branch_command(command):
+        raise ValueError("direct protected branch mutation is not allowed; use PR merge flow")
+
+
 def run_commands(commands: list[list[str]]) -> list[dict]:
     results: list[dict] = []
     for command in commands:
         if not command:
             continue
-        if not is_command_allowed(command):
-            raise ValueError(f"command not allowlisted: {command[0]}")
+        validate_command(command)
         completed = subprocess.run(command, capture_output=True, text=True, check=False)
         results.append(
             {
