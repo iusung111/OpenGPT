@@ -6,6 +6,7 @@ Minimal target repository for testing the web ChatGPT + GitHub MCP + GitHub Acti
 
 - `.github/workflows/agent-run.yml`
 - `.github/workflows/pr-validate.yml`
+- `.github/workflows/cloudflare-live-deploy.yml`
 - `scripts/agent_run.py`
 - `tests/test_agent_run.py`
 
@@ -20,6 +21,24 @@ This repository is intentionally small. It exists to validate:
 - broader structured command execution for repo inspection, development, and build validation
 - Windows GUI / single-file executable verification through `runner_label=windows-latest`
 - future chat-requested feature delivery with per-project tracking under `docs/projects/` and `projects/`
+- live Cloudflare deploy triggered from GitHub Actions on `main`
+
+## Cloudflare Live Deploy
+
+The `.github/workflows/cloudflare-live-deploy.yml` workflow triggers on push to `main` (and can also be run manually). It:
+
+- validates the `CLOUDFLARE_DEPLOY_HOOK_URL` secret
+- calls the Cloudflare deploy hook to update the live server
+- optionally performs a health check via `LIVE_HEALTHCHECK_URL`
+
+Required secrets:
+
+- `CLOUDFLARE_DEPLOY_HOOK_URL`
+
+Optional secrets:
+
+- `LIVE_HEALTHCHECK_URL`
+- `LIVE_HEALTHCHECK_TOKEN`
 
 ## Chat-Requested Feature Delivery Flow
 
@@ -36,7 +55,7 @@ This keeps feature work isolated from the MCP self-improvement loop while preser
 
 ## Structured Agent Payload Notes
 
-`scripts/agent_run.py` now accepts a broader set of development and build commands so web GPT  flows can handle:
+`scripts/agent_run.py` now accepts a broader set of development and build commands so web GPT  flows can handle:
 
 - repo inspection: `ls`, `cat`, `sed`, `grep`, `find`
 - Python workflows: `python`, `python3`, `pip`, `pip3`, `pytest`, `ruff`, `pyinstaller`, `uv`
@@ -52,7 +71,7 @@ The workflow also accepts a `runner_label` input so the same structured payload 
 
 Use the existing allowlisted `agent-run.yml` workflow and pass a structured `pull_request_merge` object instead of adding a separate merge workflow:
 
-```json
+ ```json
 {
   "pull_request_merge": {
     "number": 7,
@@ -68,12 +87,12 @@ This keeps PR merge inside the existing allowlisted workflow surface and reduces
 
 Use `runner_label=windows-latest` and a structured payload that writes a tiny GUI script, installs PyInstaller, and builds it:
 
-```json
+ ```json
 {
   "write_files": [
     {
       "path": "sample_gui.py",
-      "content": "import tkinter as tk\nroot = tk.Tk()\nroot.title('OpenGPT Probe')\nlabel = tk.Label(root, text='hello')\nlabel.pack()\nroot.update()\nroot.destroy()\n"
+      "content": "import tkinter as tk\\nroot = tk.Tk()\\nroot.title('OpenGPT Probe')\\nlabel = tk.Label(root, text='hello')\\nlabel.pack()\\nroot.update()\\nroot.destroy()\\n"
     }
   ],
   "commands": [
