@@ -1,0 +1,61 @@
+name: cloudflare-live-deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to deploy (optional)"
+        required: false
+        default: "main"
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-live-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
+
+      - name: Validate required secrets
+        env:
+          CLOUDFLARE_DEPLOY_HOOK_URL: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$CLOUDFLARE_DEPLOY_HOOK_URL" ]; then
+            echo "Missing required secret: CLOUDFLARE_DEPLOY_HOOK_URL" >&2
+            exit 1
+          fi
+
+      - name: Trigger Cloudflare live deploy
+        env:
+          CLOUDFLARE_DEPLOY_HOOK_URL: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK_URL }}
+        run: |
+          curl --fail --show-error --get "$CLOUDFLARE_DEPLOY_HOOK_URL"
+
+      - name: Wait for deglitch propagation
+        run: sleep 10
+
+      - name: Health check live server (optional)
+        if: ${{ secrets.LIVE_HEALTHCHECK_URL != '' }}
+        env:
+          LIVE_HEALTHCHECK_URL: ${{ secrets.LIVE_HEALTHCHECK_URL }}
+          LIVE_HEALTHCHECK_TOKEN: ${{ secrets.LIVE_HEALTHCHECK_TOKEN }}
+        run: |
+          HEADERS=()
+          if [ -n "$LIVE_HEALTHCHECK_TOKEN" ]; then
+            HEADERS+=(-H "Authorization: Bearer $LIVE_HEALTHCHECK_TOKEN")
+          fi
+          curl --fail --show-error "${HEADERS[@]}" "$LIVE_HEALTHCHECK_URL"
