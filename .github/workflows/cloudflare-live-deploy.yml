@@ -5,50 +5,34 @@ on:
     branches:
       - main
   workflow_dispatch:
-    inputs:
-      ref:
-        description: "Git ref to deploy (optional)"
-        required: false
-        default: "main"
-        type: string
 
 permissions:
   contents: read
 
-concurrency:
-  group: cloudflare-live-deploy-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment:
-      name: production
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.ref || github.ref }}
+          node-version: 18
 
-      - name: Validate required secrets
+      - name: Install Wrangler
+        run: npm install -g wrangler
+
+      - name: Deploy to Cloudflare Workers
         env:
-          CLOUDFLARE_DEPLOY_HOOK_URL: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK_URL }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          if [ -z "$CLOUDFLARE_DEPLOY_HOOK_URL" ]; then
-            echo "Missing required secret: CLOUDFLARE_DEPLOY_HOOK_URL" >&2
-            exit 1
-          fi
+          wrangler deploy
 
-      - name: Trigger Cloudflare live deploy
-        env:
-          CLOUDFLARE_DEPLOY_HOOK_URL: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK_URL }}
-        run: |
-          curl --fail --show-error --get "$CLOUDFLARE_DEPLOY_HOOK_URL"
-
-      - name: Wait for deglitch propagation
-        run: sleep 10
-
-      - name: Health check live server (optional)
+      - name: Health check (optional)
         if: ${{ secrets.LIVE_HEALTHCHECK_URL != '' }}
         env:
           LIVE_HEALTHCHECK_URL: ${{ secrets.LIVE_HEALTHCHECK_URL }}
@@ -56,6 +40,6 @@ jobs:
         run: |
           HEADERS=()
           if [ -n "$LIVE_HEALTHCHECK_TOKEN" ]; then
-            HEADERS+=(-H "Authorization: Bearer $LIVE_HEALTHCHECK_TOKEN")
+            HEADERS+=( -H "Authorization: Bearer $LIVE_HEALTHCHECK_TOKEN" )
           fi
           curl --fail --show-error "${HEADERS[@]}" "$LIVE_HEALTHCHECK_URL"
