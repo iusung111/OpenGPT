@@ -150,6 +150,8 @@ jobs:
               data=json.dumps(payload).encode("utf-8"),
               headers={
                   "content-type": "application/json",
+                  "accept": "application/json",
+                  "user-agent": "GitHub-Actions-OpenGPT-Agent-Run/1.0",
                   "x-queue-token": queue_token,
               },
               method="POST",
@@ -265,6 +267,8 @@ jobs:
               data=json.dumps(payload).encode("utf-8"),
               headers={
                   "content-type": "application/json",
+                  "accept": "application/json",
+                  "user-agent": "GitHub-Actions-OpenGPT-Agent-Run/1.0",
                   "x-queue-token": queue_token,
               },
               method="POST",
