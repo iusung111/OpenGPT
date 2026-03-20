@@ -91,7 +91,13 @@ def is_command_allowed(command: list[str]) -> bool:
 
 def ensure_safe_path(path: str) -> None:
     path_obj = Path(path)
-    if path_obj.is_absolute() or ".." in path_obj.parts:
+    raw_path = str(path)
+    if (
+        path_obj.is_absolute()
+        or raw_path.startswith(("/", "\\"))
+        or re.match(r"^[A-Za-z]:[\\/]", raw_path) is not None
+        or ".." in path_obj.parts
+    ):
         raise ValueError(f"unsafe path: {path}")
 
 
