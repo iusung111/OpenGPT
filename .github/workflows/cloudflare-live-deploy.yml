@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - main
+    paths:
+      - ".github/workflows/cloudflare-live-deploy.yml"
+      - "wrangler.toml"
+      - "src/**"
   workflow_dispatch:
 
 permissions:
@@ -12,6 +16,9 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLABE_ACCOUNT_ID }}
 
     steps:
       - name: Checkout
@@ -20,17 +27,21 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
+
+      - name: Validate deploy inputs
+        run: |
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "Missing CLOUDFLARE_API_TOKEN" >&2; exit 1; }
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || { echo "Missing CLOUDFLABE_ACCOUNT_ID" >&2; exit 1; }
+          [ -f "wrangler.toml" ] || { echo "Missing wrangler.toml" >&2; exit 1; }
+          [ -f "src/worker.js" ] || { echo "Missing src/worker.js" >&2; exit 1; }
 
       - name: Install Wrangler
-        run: npm install -g wrangler
+        run: npm install -g wrangler@4
 
       - name: Deploy to Cloudflare Workers
-        env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          wrangler deploy
+          wrangler deploy --config wrangler.toml
 
       - name: Health check (optional)
         if: ${{ secrets.LIVE_HEALTHCHECK_URL != '' }}

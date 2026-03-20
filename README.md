@@ -9,6 +9,8 @@ Minimal target repository for testing the web ChatGPT + GitHub MCP + GitHub Acti
 - `.github/workflows/cloudflare-live-deploy.yml`
 - `scripts/agent_run.py`
 - `tests/test_agent_run.py`
+- `wrangler.toml`
+- `src/worker.js`
 
 ## Purpose
 
@@ -25,15 +27,22 @@ This repository is intentionally small. It exists to validate:
 
 ## Cloudflare Live Deploy
 
-The `.github/workflows/cloudflare-live-deploy.yml` workflow triggers on push to `main` (and can also be run manually). It:
+The `.github/workflows/cloudflare-live-deploy.yml` workflow deploys the repository's Worker on push to `main` (and can also be run manually). It now expects a minimal Worker project in this repository:
 
-- validates the `CLOUDFLARE_DEPLOY_HOOK_URL` secret
-- calls the Cloudflare deploy hook to update the live server
+- `wrangler.toml`
+- `src/worker.js`
+
+The workflow:
+
+- validates `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
+- validates that the Worker config and entrypoint exist before deploying
+- installs Wrangler and runs `wrangler deploy --config wrangler.toml`
 - optionally performs a health check via `LIVE_HEALTHCHECK_URL`
 
 Required secrets:
 
-- `CLOUDFLARE_DEPLOY_HOOK_URL`
+- `CLOUDFLARE_API_TOKEN`
+- `CLOUDFLARE_ACCOUNT_ID`
 
 Optional secrets:
 
@@ -55,11 +64,11 @@ This keeps feature work isolated from the MCP self-improvement loop while preser
 
 ## Structured Agent Payload Notes
 
-`scripts/agent_run.py` now accepts a broader set of development and build commands so web GPT  flows can handle:
+`scripts/agent_run.py` now accepts a broader set of development and build commands so web GPT flows can handle:
 
 - repo inspection: `ls`, `cat`, `sed`, `grep`, `find`
 - Python workflows: `python`, `python3`, `pip`, `pip3`, `pytest`, `ruff`, `pyinstaller`, `uv`
-- Node workflows: `node`, `npm`, `pnpm`, `yarn`, `npx`
+- Node workflows: `node`, `npm`, `pn}`, `yarn`, `npx`
 - native build workflows: `go`, `cargo`, `rustc`, `cmake`, `cpack`, `make`
 - GitHub and VCS helpers: `git`, `gh`
 - Windows runner helpers: `pwsh`, `powershell`
@@ -71,7 +80,7 @@ The workflow also accepts a `runner_label` input so the same structured payload 
 
 Use the existing allowlisted `agent-run.yml` workflow and pass a structured `pull_request_merge` object instead of adding a separate merge workflow:
 
- ```json
+```json
 {
   "pull_request_merge": {
     "number": 7,
@@ -102,4 +111,4 @@ Use `runner_label=windows-latest` and a structured payload that writes a tiny GU
 }
 ```
 
-If the build succeeds, the workflow uploads both `.agent-output/manifest.json` and any `dist/` or `build/` outputs as artifacts.
+If the build succeeds, the workflow uploads both .agent-output/manifest.json` and any `dist/` or `build/` outputs as artifacts.
