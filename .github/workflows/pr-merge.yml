@@ -40,8 +40,7 @@ jobs:
 
           DELETE_FLAG=""
           if [ "${{ inputs.delete_branch }}" = "true" ]; then
-            DELETE_FLAG=
-              "--delete-branch"
+            DELETE_FLAG="--delete-branch"
           fi
 
           gh pr merge "${{ inputs.pull_number }}" \
