@@ -91,16 +91,22 @@ jobs:
         id: vars
         run: |
           slug="${{ inputs.project_slug }}"
-          slug_suffix=""
-          if [ -n "$slug" ]; then
-            slug_suffix="-$slug"
+          kind_prefix="task"
+          name_suffix=""
+          if [ "${{ inputs.request_kind }}" = "self_improvement" ]; then
+            kind_prefix="self"
+          elif [ "${{ inputs.request_kind }}" = "feature_delivery" ]; then
+            kind_prefix="project"
+            if [ -n "$slug" ]; then
+              name_suffix="-$slug"
+            fi
           fi
 
           if [ "${{ inputs.dry_run }}" = "true" ]; then
             echo "branch_name=${{ inputs.base_branch }}" >> "$GITHUB_OUTPUT"
             echo "should_create_branch=false" >> "$GITHUB_OUTPUT"
           else
-            echo "branch_name=agent/${{ inputs.job_id }}${slug_suffix}-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+            echo "branch_name=agent/${kind_prefix}${name_suffix}-${{ inputs.job_id }}-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
             echo "should_create_branch=true" >> "$GITHUB_OUTPUT"
           fi
 
