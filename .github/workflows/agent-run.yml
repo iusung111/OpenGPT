@@ -289,6 +289,7 @@ jobs:
           import json
           from pathlib import Path
 
+          Path(".agent-output").mkdir(parents=True, exist_ok=True)
           manifest_path = Path(".agent-output/manifest.json")
           payload = {}
           if manifest_path.exists():
