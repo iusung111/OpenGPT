@@ -168,9 +168,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          pr_body_file="$(mktemp)"
+          cat > "$pr_body_file" <<EOF
+          ${{ inputs.pr_body }}
+
+          <!-- opengpt-job
+          job_id: ${{ inputs.job_id }}
+          run_id: ${{ github.run_id }}
+          workflow: agent-run.yml
+          branch: ${{ steps.vars.outputs.branch_name }}
+          -->
+          EOF
           gh pr create \
             --title "${{ inputs.pr_title }}" \
-            --body "${{ inputs.pr_body }}" \
+            --body-file "$pr_body_file" \
             --base "${{ inputs.base_branch }}" \
             --head "${{ steps.vars.outputs.branch_name }}"
 
