@@ -118,55 +118,6 @@ jobs:
         run: |
           git checkout -b "${{ steps.vars.outputs.branch_name }}"
 
-      - name: Link queue job to workflow run
-        env:
-          MCP_QUEUE_URL: ${{ secrets.MCP_QUEUE_URL }}
-          MCP_QUEUE_TOKEN: ${{ secrets.MCP_QUEUE_TOKEN }}
-        run: |
-          "${{ steps.python.outputs.cmd }}" - <<'PY'
-          import json
-          import os
-          import urllib.error
-          import urllib.request
-
-          queue_url = os.environ.get("MCP_QUEUE_URL", "").strip()
-          queue_token = os.environ.get("MCP_QUEUE_TOKEN", "").strip()
-          if not queue_url or not queue_token:
-              print("Queue linkage skipped: MCP_QUEUE_URL or MCP_QUEUE_TOKEN is not configured")
-              raise SystemExit(0)
-
-          payload = {
-              "action": "job_update_status",
-              "job_id": "${{ inputs.job_id }}",
-              "status": "working",
-              "next_actor": "system",
-              "job": {
-                  "workflow_run_id": int("${{ github.run_id }}"),
-                  "work_branch": "${{ steps.vars.outputs.branch_name }}",
-              },
-          }
-          request = urllib.request.Request(
-              queue_url.rstrip("/") + "/queue",
-              data=json.dumps(payload).encode("utf-8"),
-              headers={
-                  "content-type": "application/json",
-                  "x-queue-token": queue_token,
-              },
-              method="POST",
-          )
-          try:
-              with urllib.request.urlopen(request) as response:
-                  body = json.loads(response.read().decode("utf-8"))
-          except urllib.error.HTTPError as exc:
-              detail = exc.read().decode("utf-8", errors="replace")
-              raise SystemExit(f"Queue linkage failed: {exc.code} {detail}")
-
-          if not body.get("ok"):
-              raise SystemExit(f"Queue linkage failed: {json.dumps(body)}")
-
-          print("Linked queue job to workflow run")
-          PY
-
       - name: Prepare input payload
         run: |
           mkdir -p .agent-input .agent-output
@@ -223,65 +174,6 @@ jobs:
             --base "${{ inputs.base_branch }}" \
             --head "${{ steps.vars.outputs.branch_name }}"
 
-      - name: Link queue job to pull request
-        if: steps.diff.outputs.changed == 'true' && inputs.dry_run == false && inputs.pr_title != ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-          MCP_QUEUE_URL: ${{ secrets.MCP_QUEUE_URL }}
-          MCP_QUEUE_TOKEN: ${{ secrets.MCP_QUEUE_TOKEN }}
-        run: |
-          pr_number="$(gh api "repos/${{ github.repository }}/pulls?state=open&head=${{ github.repository_owner }}:${{ steps.vars.outputs.branch_name }}" --jq '.[0].number')"
-          if [ -z "$pr_number" ] || [ "$pr_number" = "null" ]; then
-            echo "Queue PR linkage skipped: no PR number found for branch ${{ steps.vars.outputs.branch_name }}"
-            exit 0
-          fi
-          export PR_NUMBER="$pr_number"
-
-          "${{ steps.python.outputs.cmd }}" - <<'PY'
-          import json
-          import os
-          import urllib.error
-          import urllib.request
-
-          queue_url = os.environ.get("MCP_QUEUE_URL", "").strip()
-          queue_token = os.environ.get("MCP_QUEUE_TOKEN", "").strip()
-          if not queue_url or not queue_token:
-              print("Queue PR linkage skipped: MCP_QUEUE_URL or MCP_QUEUE_TOKEN is not configured")
-              raise SystemExit(0)
-
-          payload = {
-              "action": "job_update_status",
-              "job_id": "${{ inputs.job_id }}",
-              "status": "working",
-              "next_actor": "system",
-              "job": {
-                  "workflow_run_id": int("${{ github.run_id }}"),
-                  "work_branch": "${{ steps.vars.outputs.branch_name }}",
-                  "pr_number": int(os.environ["PR_NUMBER"]),
-              },
-          }
-          request = urllib.request.Request(
-              queue_url.rstrip("/") + "/queue",
-              data=json.dumps(payload).encode("utf-8"),
-              headers={
-                  "content-type": "application/json",
-                  "x-queue-token": queue_token,
-              },
-              method="POST",
-          )
-          try:
-              with urllib.request.urlopen(request) as response:
-                  body = json.loads(response.read().decode("utf-8"))
-          except urllib.error.HTTPError as exc:
-              detail = exc.read().decode("utf-8", errors="replace")
-              raise SystemExit(f"Queue PR linkage failed: {exc.code} {detail}")
-
-          if not body.get("ok"):
-              raise SystemExit(f"Queue PR linkage failed: {json.dumps(body)}")
-
-          print(f"Linked queue job to PR #{os.environ['PR_NUMBER']}")
-          PY
-
       - name: Write workflow manifest
         if: always()
         run: |
@@ -289,6 +181,7 @@ jobs:
           import json
           from pathlib import Path
 
+          Path(".agent-output").mkdir(parents=True, exist_ok=True)
           manifest_path = Path(".agent-output/manifest.json")
           payload = {}
           if manifest_path.exists():
