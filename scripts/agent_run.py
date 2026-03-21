@@ -94,8 +94,8 @@ def ensure_safe_path(path: str) -> None:
     raw_path = str(path)
     if (
         path_obj.is_absolute()
-        or raw_path.startswith(("/", "\\"))
-        or re.match(r"^[A-Za-z]:[\\/]", raw_path) is not None
+        or raw_path.startswith(("/", "\\\"))
+        or re.match(r"^[A-Za-z=:[\\/]", raw_path) is not None
         or ".." in path_obj.parts
     ):
         raise ValueError(f"unsafe path: {path}")
@@ -130,6 +130,56 @@ def normalize_pull_request_number(value: int | str) -> str:
     return str(number)
 
 
+def normalize_review_verdict(review_verdict: str | None) -> str | None:
+    if review_verdict is None:
+        return None
+    verdict = review_verdict.strip().lower()
+    if not verdict:
+        return None
+    if verdict not in {"approved", "changes_requested", "blocked"}:
+        raise ValueError(f"invalid review_verdict: {review_verdict}")
+    return verdict
+
+
+def normalize_review_findings(review_findings: list[dict] | None) -> list[dict]:
+    if not review_findings:
+        return []
+
+    normalized: list[dict] = []
+    for finding in review_findings:
+        severity = str(finding.get("severity", "")).strip().lower()
+        if severity not in {"low", "medium", "high", "critical"}:
+            raise ValueError(f"invalid review finding severity: {finding.get('severity')}")
+        file = str(finding.get("file", "")).strip()
+        rationale = str(finding.get("rationale", "")).strip()
+        if not file:
+            raise ValueError("review finding file is required")
+        if not rationale:
+            raise ValueError("review finding rationale is required")
+        line_hint = str(finding.get("line_hint", "")).strip()
+        normalized_finding = {
+            "severity": severity,
+            "file": file,
+            "rationale": rationale,
+        }
+        if line_hint:
+            normalized_finding["line_hint"] = line_hint
+        normalized.append(normalized_finding)
+    return normalized
+
+
+def build_review_context(instructions: dict) -> dict:
+    review_context = {
+        "cycle": int(instructions.get("review_cycle", 0) or 0),
+        "verdict": normalize_review_verdict(instructions.get("review_verdict")),
+        "next_action": str(instructions.get("next_action", "")).strip() or None,
+        "findings": normalize_review_findings(instructions.get("review_findings")),
+    }
+    if review_context["cycle"] < 0:
+        raise ValueError("review_cycle must be zero or greater")
+    return review_context
+
+
 def project_doc_path(project_slug: str) -> Path:
     return Path("docs/projects") / f"{project_slug}.md"
 
@@ -153,6 +203,7 @@ def ensure_project_scaffold(
     if not create_project_scaffold:
         return
 
+    review_context = manifest["review_context"]
     doc_path = project_doc_path(project_slug)
     ensure_safe_path(str(doc_path))
     doc_path.parent.mkdir(parents=True, exist_ok=True)
@@ -164,11 +215,17 @@ def ensure_project_scaffold(
                     "",
                     "- Request kind: feature_delivery",
                     "- Status: scaffolded",
+                    f"- Review cycle: {review_context['cycle']}",
                     "- Notes: created automatically by agent_run.py",
                     "",
                     "## Scope",
                     "",
                     "Fill in the chat-requested implementation scope here.",
+                    "",
+                    "## Review Loop",
+                    "",
+                    "- Verdict: pending",
+                    "- Next action: capture reviewer feedback here.",
                     "",
                 ]
             ),
@@ -285,6 +342,7 @@ def main() -> int:
     request_kind = instructions.get("request_kind", "self_improvement")
     project_slug = normalize_project_slug(instructions.get("project_slug"))
     create_project_scaffold = bool(instructions.get("create_project_scaffold", False))
+    review_context = build_review_context(instructions)
 
     manifest = {
         "job_id": instructions.get("job_id"),
@@ -293,11 +351,23 @@ def main() -> int:
         "project_slug": project_slug,
         "project_doc": str(project_doc_path(project_slug)) if project_slug else None,
         "project_root": str(project_root_path(project_slug)) if project_slug else None,
+        "review_context": review_context,
         "writes": [],
         "command_results": [],
         "structured_operations": [],
         "notes": [],
     }
+
+    if review_context["verdict"]:
+        manifest["notes"].append(
+            f"review cycle {review_context['cycle']} verdict: {review_context['verdict']}"
+        )
+    if review_context["next_action"]:
+        manifest["notes"].append(f"review next_action: {review_context['next_action']}")
+    if review_context["findings"]:
+        manifest["notes"].append(
+            f"review findings captured: {len(review_context['findings'])}"
+        )
 
     ensure_project_scaffold(
         project_slug=project_slug,
