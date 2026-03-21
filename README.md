@@ -68,13 +68,24 @@ This keeps feature work isolated from the MCP self-improvement loop while preser
 
 - repo inspection: `ls`, `cat`, `sed`, `grep`, `find`
 - Python workflows: `python`, `python3`, `pip`, `pip3`, `pytest`, `ruff`, `pyinstaller`, `uv`
-- Node workflows: `node`, `npm`, `pn}`, `yarn`, `npx`
+- Node workflows: `node`, `npm`, `pnpm`, `yarn`, `npx`
 - native build workflows: `go`, `cargo`, `rustc`, `cmake`, `cpack`, `make`
 - GitHub and VCS helpers: `git`, `gh`
 - Windows runner helpers: `pwsh`, `powershell`
 - PR merge through structured payload: `pull_request_merge`
 
 The workflow also accepts a `runner_label` input so the same structured payload can be validated on `ubuntu-latest` or `windows-latest`.
+
+## Persistent Review/Rework Cycle
+
+For chat-driven implementation that must survive an interrupted session, include review loop metadata in the structured instructions payload and keep the queue state in the MCP job:
+
+- `review_cycle=<n>` to persist the current cycle number
+- `review_verdict=approved|changes_requested|blocked`
+- `review_findings=[...]` with `severity`, `file`, `line_hint`, `rationale`
+- `next_action="..."` for the next worker step
+
+`agent_run.py` records this review context in `.agent-output/manifest.json`, so a later worker or reviewer can resume from the persisted artifact instead of relying on chat history alone.
 
 ## Example: Structured PR Merge
 
@@ -96,12 +107,12 @@ This keeps PR merge inside the existing allowlisted workflow surface and reduces
 
 Use `runner_label=windows-latest` and a structured payload that writes a tiny GUI script, installs PyInstaller, and builds it:
 
- ```json
+```json
 {
   "write_files": [
     {
       "path": "sample_gui.py",
-      "content": "import tkinter as tk\\nroot = tk.Tk()\\nroot.title('OpenGPT Probe')\\nlabel = tk.Label(root, text='hello')\\nlabel.pack()\\nroot.update()\\nroot.destroy()\\n"
+      "content": "import tkinter as tk\nroot = tk.Tk()\nroot.title('OpenGPT Probe')\nlabel = tk.Label(root, text='hello')\nlabel.pack()\nroot.update()\nroot.destroy()\n"
     }
   ],
   "commands": [
@@ -111,4 +122,4 @@ Use `runner_label=windows-latest` and a structured payload that writes a tiny GU
 }
 ```
 
-If the build succeeds, the workflow uploads both .agent-output/manifest.json` and any `dist/` or `build/` outputs as artifacts.
+If the build succeeds, the workflow uploads both `.agent-output/manifest.json` and any `dist/` or `build/` outputs as artifacts.
