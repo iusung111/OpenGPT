@@ -151,4 +151,26 @@ class AgentRunStructuredOperationTests(unittest.TestCase):
 
 class AgentRunProtectedBranchTests(unittest.TestCase):
     def test_detects_direct_push_to_main(self) -> None:
-        self.assertTrue(is_protected_branch_command(["kit", "push", "origin", "main"]))
+        self.assertTrue(is_protected_branch_command(["git", "push", "origin", "main"]))
+
+    def test_detects_direct_push_to_master_with_options(self) -> None:
+        self.assertTrue(
+            is_protected_branch_command(
+                ["git", "push", "--set-upstream", "origin", "master"]
+            )
+        )
+
+    def test_allows_push_to_agent_branch(self) -> None:
+        self.assertFalse(
+            is_protected_branch_command(
+                ["git", "push", "--set-upstream", "origin", "agent/safe-branch"]
+            )
+        )
+
+    def test_blocks_validation_for_protected_branch_mutation(self) -> None:
+        with self.assertRaisesRegex(ValueError, "protected branch mutation"):
+            validate_command(["git", "push", "origin", "main"])
+
+
+if __name__ == "__main__":
+    unittest.main()
