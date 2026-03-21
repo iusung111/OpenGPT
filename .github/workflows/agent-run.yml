@@ -51,7 +51,7 @@ on:
         default: ""
         type: string
       create_project_scaffold:
-        description: "Create docs/projects/<slug>.md and projects/<slug>/ scaffold"
+        description: "Create project/<slug>/README.md scaffold"
         required: true
         default: false
         type: boolean
@@ -145,7 +145,7 @@ jobs:
 
       - name: Execute structured agent payload
         run: |
-          "${{ steps.python.outputs.cmd }}" scripts/agent_run.py
+          "${{ steps.python.outputs.cmd }}" workspace/scripts/agent_run.py
 
       - name: Detect changes
         id: diff

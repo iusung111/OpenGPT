@@ -29,4 +29,4 @@ jobs:
           path: |
             README.md
             .github/workflows
-            scripts
+            workspace/scripts

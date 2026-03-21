@@ -7,7 +7,7 @@ on:
     paths:
       - ".github/workflows/cloudflare-live-deploy.yml"
       - "wrangler.toml"
-      - "src/**"
+      - "workspace/src/**"
   workflow_dispatch:
 
 permissions:
@@ -36,7 +36,7 @@ jobs:
           [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "Missing CLOUDFLARE_API_TOKEN" >&2; exit 1; }
           [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || { echo "Missing CLOUDFLARE_ACCOUNT_ID" >&2; exit 1; }
           [ -f "wrangler.toml" ] || { echo "Missing wrangler.toml" >&2; exit 1; }
-          [ -f "src/worker.js" ] || { echo "Missing src/worker.js" >&2; exit 1; }
+          [ -f "workspace/src/worker.js" ] || { echo "Missing workspace/src/worker.js" >&2; exit 1; }
 
       - name: Install Wrangler
         run: npm install -g wrangler@4

@@ -131,11 +131,11 @@ def normalize_pull_request_number(value: int | str) -> str:
 
 
 def project_doc_path(project_slug: str) -> Path:
-    return Path("docs/projects") / f"{project_slug}.md"
+    return project_root_path(project_slug) / "README.md"
 
 
 def project_root_path(project_slug: str) -> Path:
-    return Path("projects") / project_slug
+    return Path("project") / project_slug
 
 
 def ensure_project_scaffold(
@@ -155,16 +155,19 @@ def ensure_project_scaffold(
 
     doc_path = project_doc_path(project_slug)
     ensure_safe_path(str(doc_path))
+    root_path = project_root_path(project_slug)
+    ensure_safe_path(str(root_path))
+    root_path.mkdir(parents=True, exist_ok=True)
     doc_path.parent.mkdir(parents=True, exist_ok=True)
     if not doc_path.exists():
         doc_path.write_text(
             "\n".join(
                 [
-                    f"# Project: {project_slug}",
+                    f"# {project_slug}",
                     "",
                     "- Request kind: feature_delivery",
                     "- Status: scaffolded",
-                    "- Notes: created automatically by agent_run.py",
+                    "- Notes: created automatically by workspace/scripts/agent_run.py",
                     "",
                     "## Scope",
                     "",
@@ -175,14 +178,6 @@ def ensure_project_scaffold(
             encoding="utf-8",
         )
         manifest["writes"].append(str(doc_path))
-
-    root_path = project_root_path(project_slug)
-    ensure_safe_path(str(root_path))
-    root_path.mkdir(parents=True, exist_ok=True)
-    keep_path = root_path / ".gitkeep"
-    if not keep_path.exists():
-        keep_path.write_text("", encoding="utf-8")
-        manifest["writes"].append(str(keep_path))
 
 
 def _extract_git_push_targets(command: list[str]) -> list[str]:

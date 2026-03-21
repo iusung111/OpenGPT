@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from scripts.agent_run import (
+from workspace.scripts.agent_run import (
     build_pull_request_merge_command,
     ensure_project_scaffold,
     ensure_safe_path,
