@@ -1,0 +1,30 @@
+name: Build Todo EXE
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'project/todo-exe/**'
+      - '.github/workflows/build-todo-exe.yml'
+
+jobs:
+  build-windows-exe:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: project/todo-exe
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build exe
+        run: go build -ldflags="-s -w" -o todo.exe main.go
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: todo-exe
+          path: project/todo-exe/todo.exe
