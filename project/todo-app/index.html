@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Todo App</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 640px; margin: 40px auto; padding: 0 16px; background: #f5f7fb; }
+    .app { background: white; padding: 24px; border-radius: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
+    .row { display: flex; gap: 8px; margin-bottom: 16px; }
+    input[type="text"] { flex: 1; padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; }
+    button { padding: 10px 12px; border: 0; border-radius: 8px; cursor: pointer; }
+    .add { background: #2563eb; color: white; }
+    .danger { background: #ef4444; color: white; }
+    ul { list-style: none; padding: 0; }
+    li { display: flex; justify-content: space-between; align-items: center; gap: 8px; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; margin-bottom: 8px; background: #fff; }
+    .left { display: flex; gap: 8px; align-items: center; flex: 1; }
+    .done { text-decoration: line-through; color: #9ca3af; }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>Todo App</h1>
+    <p>간단한 할 일 관리 프로그램</p>
+    <div class="row">
+      <input id="todo-input" type="text" placeholder="할 일을 입력하세요" />
+      <button class="add" id="add-btn">추가</button>
+    </div>
+    <div class="row">
+      <strong id="count">0개의 할 일</strong>
+      <button id="clear-btn">완료 항목 삭제</button>
+    </div>
+    <ul id="list"></ul>
+  </main>
+  <script>
+    const KEY = "project-todo-app";
+    const input = document.getElementById("todo-input");
+    const addBtn = document.getElementById("add-btn");
+    const clearBtn = document.getElementById("clear-btn");
+    const list = document.getElementById("list");
+    const count = document.getElementById("count");
+
+    let todos = JSON.parse(localStorage.getItem(KEY) || "[]");
+
+    function save() {
+      localStorage.setItem(KEY, JSON.stringify(todos));
+    }
+
+    function render() {
+      list.innerHTML = "";
+      todos.forEach((todo) => {
+        const li = document.createElement("li");
+        const left = document.createElement("div");
+        left.className = "left";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.checked = todo.done;
+        checkbox.onchange = () => {
+          todo.done = !todo.done;
+          save();
+          render();
+        };
+
+        const text = document.createElement("span");
+        text.textContent = todo.text;
+        if (todo.done) text.className = "done";
+
+        const del = document.createElement("button");
+        del.className = "danger";
+        del.textContent = "삭제";
+        del.onclick = () => {
+          todos = todos.filter((item) => item.id !== todo.id);
+          save();
+          render();
+        };
+
+        left.appendChild(checkbox);
+        left.appendChild(text);
+        li.appendChild(left);
+        li.appendChild(del);
+        list.appendChild(li);
+      });
+
+      const remaining = todos.filter((todo) => !todo.done).length;
+      count.textContent = `${remaining}개의 할 일`;
+    }
+
+    function addTodo() {
+      const text = input.value.trim();
+      if (!text) return;
+      todos.unshift({ id: Date.now(), text, done: false });
+      input.value = "";
+      save();
+      render();
+    }
+
+    addBtn.onclick = addTodo;
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") addTodo();
+    });
+    clearBtn.onclick = () => {
+      todos = todos.filter((todo) => !todo.done);
+      save();
+      render();
+    };
+
+    render();
+  </script>
+</body>
+</html>
