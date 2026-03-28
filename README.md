@@ -15,10 +15,14 @@ Minimal target repository for testing the web ChatGPT + GitHub MCP + GitHub Acti
 ## Included
 
 - `.github/workflows/agent-run.yml`
+- `.github/workflows/opengpt-exec.yml`
+- `.github/workflows/opengpt-package.yml`
 - `.github/workflows/pr-validate.yml`
 - `.github/workflows/cloudflare-live-deploy.yml`
+- `.opengpt/project-capabilities.json`
 - `workspace/`
 - `workspace/scripts/agent_run.py`
+- `workspace/scripts/opengpt_workflow_runner.py`
 - `workspace/tests/test_agent_run.py`
 - `wrangler.toml`
 - `workspace/src/worker.js`
@@ -29,6 +33,7 @@ Minimal target repository for testing the web ChatGPT + GitHub MCP + GitHub Acti
 This repository is intentionally small. It exists to validate:
 
 - `workflow_dispatch` from the deployed MCP server
+- the desktop-first fullstack MCP target-repo contract
 - branch creation on `agent/*`
 - dry-run execution
 - later PR-based validation
@@ -36,6 +41,21 @@ This repository is intentionally small. It exists to validate:
 - Windows GUI / single-file executable verification through `runner_label=windows-latest`
 - future chat-requested feature delivery with per-project tracking under `project/`
 - live Cloudflare deploy triggered from GitHub Actions on `main`
+
+## Fullstack MCP Target Contract
+
+This repository now exposes the target-repo files expected by the worker's
+desktop-first fullstack MCP surface:
+
+- `.opengpt/project-capabilities.json`
+- `.github/workflows/opengpt-exec.yml`
+- `.github/workflows/opengpt-package.yml`
+
+The contract stays intentionally minimal for this validation repository:
+
+- verification routes through `opengpt-exec.yml`
+- desktop build and smoke flows route through `opengpt-package.yml`
+- preview and database actions remain disabled by default
 
 ## Cloudflare Live Deploy
 

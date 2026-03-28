@@ -1,0 +1,77 @@
+{
+  "runtime_kind": "workflow_command_target",
+  "desktop_shell": null,
+  "verify_profiles": [
+    {
+      "id": "python-unit",
+      "label": "Python unit tests",
+      "commands": [
+        "python -m unittest discover workspace/tests"
+      ],
+      "kind": "verify"
+    },
+    {
+      "id": "worker-layout-check",
+      "label": "Worker layout check",
+      "commands": [
+        "python -c \"from pathlib import Path; required=['wrangler.toml','workspace/src/worker.js']; missing=[item for item in required if not Path(item).exists()]; raise SystemExit('missing required files: ' + ', '.join(missing) if missing else 0)\""
+      ],
+      "kind": "verify"
+    },
+    {
+      "id": "desktop-build-probe",
+      "label": "Desktop build probe",
+      "commands": [
+        "python -c \"from pathlib import Path; dist=Path('dist'); dist.mkdir(exist_ok=True); (dist / 'opengpt-desktop-probe.txt').write_text('desktop build probe\\n', encoding='utf-8')\""
+      ],
+      "kind": "desktop_build"
+    },
+    {
+      "id": "desktop-smoke-probe",
+      "label": "Desktop smoke probe",
+      "commands": [
+        "python -c \"from pathlib import Path; import sys; probe=Path('dist/opengpt-desktop-probe.txt'); print(probe.read_text(encoding='utf-8').strip() if probe.exists() else 'missing'); sys.exit(0 if probe.exists() else 1)\""
+      ],
+      "kind": "desktop_smoke"
+    }
+  ],
+  "package_targets": [
+    "windows-validation"
+  ],
+  "web_preview": {
+    "enabled": false,
+    "services": [
+      "live"
+    ],
+    "ttl_minutes": 240
+  },
+  "api_contract_sources": [],
+  "db_mode": "none",
+  "workflow_ids": {
+    "verify": "opengpt-exec.yml",
+    "package": "opengpt-package.yml",
+    "preview": "opengpt-exec.yml",
+    "release": "opengpt-exec.yml",
+    "db": "opengpt-exec.yml"
+  },
+  "desktop": {
+    "build_commands": [
+      "python -c \"from pathlib import Path; dist=Path('dist'); dist.mkdir(exist_ok=True); (dist / 'opengpt-desktop-probe.txt').write_text('desktop build probe\\n', encoding='utf-8')\""
+    ],
+    "smoke_commands": [
+      "python -c \"from pathlib import Path; import sys; probe=Path('dist/opengpt-desktop-probe.txt'); print(probe.read_text(encoding='utf-8').strip() if probe.exists() else 'missing'); sys.exit(0 if probe.exists() else 1)\""
+    ],
+    "artifact_paths": [
+      "dist"
+    ]
+  },
+  "db": {
+    "migration_commands": [],
+    "seed_commands": [],
+    "reset_commands": [],
+    "query_command": null
+  },
+  "runtime": {
+    "log_source": "workflow"
+  }
+}

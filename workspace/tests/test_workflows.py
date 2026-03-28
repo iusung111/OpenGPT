@@ -28,5 +28,19 @@ class AgentRunWorkflowTests(unittest.TestCase):
         self.assertIn('branch_name=agent/${kind_prefix}${name_suffix}-${{ inputs.job_id }}-${GITHUB_RUN_ID}', content)
 
 
+class OpenGptWorkflowContractTests(unittest.TestCase):
+    def test_exec_workflow_uses_stdlib_runner(self) -> None:
+        content = Path(".github/workflows/opengpt-exec.yml").read_text(encoding="utf-8")
+        self.assertIn("workspace/scripts/opengpt_workflow_runner.py", content)
+        self.assertIn("opengpt-exec-artifact", content)
+        self.assertIn("request_b64", content)
+
+    def test_package_workflow_uses_windows_runner_and_runner_script(self) -> None:
+        content = Path(".github/workflows/opengpt-package.yml").read_text(encoding="utf-8")
+        self.assertIn("runs-on: windows-latest", content)
+        self.assertIn("workspace/scripts/opengpt_workflow_runner.py", content)
+        self.assertIn("opengpt-package-artifact", content)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,42 @@
+name: opengpt-exec
+
+on:
+  workflow_dispatch:
+    inputs:
+      request_b64:
+        description: "Base64 encoded OpenGPT workflow request"
+        required: false
+        default: ""
+        type: string
+      request_kind:
+        description: "verify | preview_create | db_migration | deploy_promote"
+        required: false
+        default: "generic"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  exec:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Execute OpenGPT request
+        env:
+          OPENGPT_REQUEST_B64: ${{ inputs.request_b64 }}
+        run: python workspace/scripts/opengpt_workflow_runner.py --artifact-dir opengpt-exec-artifact --default-kind "${{ inputs.request_kind }}"
+
+      - name: Upload exec artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opengpt-exec-artifact
+          path: opengpt-exec-artifact

@@ -1,0 +1,42 @@
+name: opengpt-package
+
+on:
+  workflow_dispatch:
+    inputs:
+      request_b64:
+        description: "Base64 encoded OpenGPT packaging request"
+        required: false
+        default: ""
+        type: string
+      request_kind:
+        description: "desktop_build | desktop_smoke"
+        required: false
+        default: "desktop_build"
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Execute OpenGPT package request
+        env:
+          OPENGPT_REQUEST_B64: ${{ inputs.request_b64 }}
+        run: python workspace/scripts/opengpt_workflow_runner.py --artifact-dir opengpt-package-artifact --default-kind "${{ inputs.request_kind }}"
+
+      - name: Upload package artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: opengpt-package-artifact
+          path: opengpt-package-artifact
