@@ -1,4 +1,4 @@
-# OpenGPT
+# Project_OpenGPT
 
 Minimal target repository for testing the web ChatGPT + GitHub MCP + GitHub Actions workflow.
 
@@ -116,7 +116,7 @@ Use the existing allowlisted `agent-run.yml` workflow and pass a structured `pul
   "pull_request_merge": {
     "number": 7,
     "method": "merge",
-    "repository": "iusung111/OpenGPT"
+    "repository": "iusung111/Project_OpenGPT"
   }
 }
 ```
