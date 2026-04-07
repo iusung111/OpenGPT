@@ -1,47 +1,86 @@
-# 00_session_refined
+# 00_session_refined (re-built from raw session log)
 
 ## Purpose
-This file is a cleaned and structured version of the original session log.
-In stead of raw conversation, it extracts the core intent, decisions, and system direction.
+This document is a derived working source built by extracting structured intent from the raw session transcript.
+It removes conversation noise and keeps only actionable design content.
 
-This is the first working entry for the project.
+This file is a source-of-intent and must be used before any other derived docs.
 
-## Core goal
-- Build a Cloudflare-based control plane for autonomous software delivery
-- Separate metadata (Cloudflare) and real artifacts (GitHub)
-- Enforce strict guardrails and deployment boundaries
+## Raw source
+- docs/source/session_transcript_visible_chat_detailed.md
 
-## Key decisions
-- Event-driven state model
-- Append-only log (no direct overwrite)
-- Single source of truth = GitHub
-- Cloudflare = metadata only
+## Extracted core goals
+- Build an autonous software delivery system under a Cloudflare control plane
+- Separate control metadata and real artifact storage strictly
+- Enforce deterministic execution and authority ordering
+- Eliminate implicit approval and manual gates with exception of live deploy
+
+## Extracted non-negotiable rules
+- All state changes must be represented as events
+- Event log is append-only (no overwrite)
+- GitHub is a single source of truth for artifacts
+- Cloudflare stores metadata only
+- No multi-writer on the same resource
 - Live deploy requires explicit user command
+- All actions must pass through a central decision layer (Mission Kernel)
 
-## System shape (abstract)
-- Control Plane (decision, guardrail, validation)
-- Agent Runtime (execution)
-- Execution Plane (GitHub, verify, deploy)
-- Artifact Plane (path, index, metadata)
+## Extracted architecture shape
+- Control Plane
+  - program director
+  - release gate
+  - quality hygiene board
+  - session broker
+  - mission kernel
+- Agent Runtime
+  - delivery pod
+  - reliability pod
+- Execution Plane
+  - github
+  - verify
+  - deploy
+- Artifact Plane
+  - docs
+  - registry
+  - path index
 
-## Restrictions
-- No direct state overwrite
-- No multi-writer per resource
-- No template modification at rxtime
-- No live deploy without command
+## Extracted execution model
+- event-driven processing
+- validate -> authority -> dedup -> conflict -> guardrail -> event emit -> state derive
+- no direct state mutation
 
-## How to use this file
-- Read this before `0verview.md`
-- Use this as the intent source for new docs
-- Do not add detailed specs here
+## Extracted session model
+- all agents operate via sessions
+- each session has a lease
+- lease expiration revokes write authority
+- no shared write access
 
-## Next step
-- `docs/derived/01_overview.md`
-- `docs/derived/02_runtime_boundary.md`
-- `docs/derived/03_guardrail.md`
+$# Extracted delivery vs reliability lane
+- delivery implements features
+- reliability analyzes and improves
+- reliability cannot interrupt delivery unless threshold violated
+
+## Extracted deployment policy
+- mirror deploy is automated
+- live deploy requires user command
+- no implicit deploy trigger
+
+## Extracted artifact rule
+- all outputs must be stored in GitHub
+- cloudflare stores metadata only
+- artifacts must be path-indexed
+
+## Open items
+- event schema details not yet defined
+- session lease format not defined
+- conflict resolution strategy partially undefined
+- runtime file interfaces not defined
+
+## Usage
+- Use this file as the single intent reference
+- All derived docs must be consistent with this file
+- Do not add implementation details here
 
 ## What this file does not cover
-- Raw
- session log
-- Implementation logic
-- API definitions
+- raw conversation
+- code logic
+- API specs
