@@ -1,0 +1,21 @@
+{
+  "entry": "README.md",
+  "must_read_first": [
+    "README.md",
+    "docs/derived/01_overview.md",
+    "docs/derived/03_guardrail.md"
+  ],
+  "quick_paths": {
+    "overview": "docs/derived/01_overview.md",
+    "runtime": "docs/derived/02_runtime_boundary.md",
+    "guardrail": "docs/derived/03_guardrail.md",
+    "adr_entry": "docs/adr/adr_001_event_driven_control.md",
+    "source_index": "docs/source/00_SOURCE_INDEX.md"
+  },
+  "rules": [
+    "one file = one responsibility",
+    "start from README, not source docs",
+    "all live-deploy rules are non-negotiable",
+    "ADRs are immutable and superseded by new ADRs"
+  ]
+}
